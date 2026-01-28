@@ -5,7 +5,6 @@ import {
   OrbitControls,
   Float,
   Grid,
-  useTexture,
 } from "@react-three/drei";
 import {
   EffectComposer, Bloom, Noise, Vignette
@@ -30,10 +29,34 @@ function cn(...inputs) {
 // Optimized Mesh with Dynamic Quality
 function TextureMesh({ textureUrl, mode, wireframe, segments, scale }) {
   const meshRef = useRef();
+  const [texture, setTexture] = useState(null);
   
-  // Use Drei's useTexture for robust async loading
-  // We use a fallback transparent pixel if no URL is provided to prevent crashes
-  const texture = useTexture(textureUrl || "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=");
+  // Load texture dynamically when URL changes
+  useEffect(() => {
+    if (!textureUrl) {
+      setTexture(null);
+      return;
+    }
+    
+    const loader = new THREE.TextureLoader();
+    const loadedTexture = loader.load(
+      textureUrl,
+      (tex) => {
+        console.log('✅ Texture loaded successfully');
+        setTexture(tex);
+      },
+      undefined,
+      (error) => {
+        console.error('❌ Error loading texture:', error);
+      }
+    );
+    
+    return () => {
+      if (loadedTexture) {
+        loadedTexture.dispose();
+      }
+    };
+  }, [textureUrl]);
 
   useFrame((state) => {
     const t = state.clock.getElapsedTime();
@@ -60,6 +83,12 @@ function TextureMesh({ textureUrl, mode, wireframe, segments, scale }) {
     );
   }
 
+  // Don't render displacement mesh if texture isn't loaded yet
+  if (!texture) {
+    console.log('⏳ Waiting for texture to load...');
+    return null;
+  }
+
   return (
     <Float speed={1} rotationIntensity={0.2} floatIntensity={0.2}>
       <mesh ref={meshRef} rotation={[-Math.PI / 6, 0, 0]}>
@@ -67,11 +96,14 @@ function TextureMesh({ textureUrl, mode, wireframe, segments, scale }) {
         <meshStandardMaterial
           map={texture}
           displacementMap={texture}
-          displacementScale={scale * 1.5} // Exaggerated displacement for better visibility
+          displacementScale={scale * 2} // Increased for more dramatic 3D effect
           wireframe={wireframe}
           color="#ffffff"
-          metalness={0.4}
-          roughness={0.3}
+          emissive="#ffffff"
+          emissiveIntensity={0.3} // Add glow to make texture pop
+          emissiveMap={texture}
+          metalness={0.1} // Reduced metalness
+          roughness={0.7} // Increased roughness for better diffuse reflection
           transparent={true}
           side={THREE.DoubleSide}
           alphaTest={0.05}
@@ -89,10 +121,12 @@ function Scene({ textureUrl, isDemoMode, wireframe, quality, intensity }) {
       <color attach="background" args={['#050505']} />
       <fog attach="fog" args={["#050505", 2, 20]} />
       
-      <ambientLight intensity={0.5} />
-      <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} castShadow />
-      <pointLight position={[-10, 5, -10]} color="#FF003C" intensity={3} />
-      <pointLight position={[10, 5, 10]} color="#00F0FF" intensity={3} />
+      {/* Dramatically increased lighting for better texture visibility */}
+      <ambientLight intensity={1.5} />
+      <directionalLight position={[0, 5, 5]} intensity={3} />
+      <spotLight position={[10, 10, 10]} angle={0.3} penumbra={1} intensity={4} castShadow />
+      <pointLight position={[-5, 3, -5]} color="#FFFFFF" intensity={5} />
+      <pointLight position={[5, 3, 5]} color="#FFFFFF" intensity={5} />
 
       <Suspense fallback={null}>
         <TextureMesh
@@ -274,6 +308,11 @@ export default function App() {
   const [textureUrl, setTextureUrl] = useState(null);
   const [isDemoMode, setIsDemoMode] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Debug: Log state changes
+  useEffect(() => {
+    console.log('🔄 State changed - isDemoMode:', isDemoMode, 'textureUrl:', textureUrl ? 'SET' : 'NULL');
+  }, [isDemoMode, textureUrl]);
   const [processingLogs, setProcessingLogs] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const [wireframe, setWireframe] = useState(false);
@@ -317,25 +356,37 @@ export default function App() {
   };
 
   const handleDrop = (e) => {
+    console.log('🟢 Drop event detected');
     e.preventDefault(); e.stopPropagation();
     setDragActive(false); dragCounter.current = 0;
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      console.log('📁 File found in drop event:', e.dataTransfer.files[0].name);
       handleImageDrop(e.dataTransfer.files[0]);
+    } else {
+      console.log('⚠️ No file found in drop event');
     }
   };
 
   const handleImageDrop = (file) => {
-    if (!file.type.startsWith('image/')) return;
+    console.log('🔵 handleImageDrop called with file:', file);
     
+    if (!file.type.startsWith('image/')) {
+      console.log('❌ File is not an image. Type:', file.type);
+      return;
+    }
+    
+    console.log('✅ File is valid image:', file.name);
     setIsProcessing(true);
     setProcessingLogs([]);
     const reader = new FileReader();
     reader.onload = (e) => {
+        console.log('📸 FileReader loaded image data');
         const result = e.target.result;
         let stepIndex = 0;
         const interval = setInterval(() => {
             if (stepIndex >= steps.length) {
                 clearInterval(interval);
+                console.log('🎯 Setting texture URL and switching to 3D mode');
                 setTextureUrl(result);
                 setIsDemoMode(false); 
                 setIsProcessing(false);
@@ -345,6 +396,7 @@ export default function App() {
             }
         }, 350);
     };
+    console.log('📖 Starting to read file...');
     reader.readAsDataURL(file);
   };
 
