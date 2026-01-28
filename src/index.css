@@ -1,0 +1,44 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-cyber-panel/30 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)];
+  }
+
+  .glass-button {
+    @apply bg-white/5 hover:bg-white/10 border border-white/20 transition-all duration-300 backdrop-blur-md;
+  }
+
+  .neon-text-cyan {
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.7);
+  }
+
+  .neon-text-magenta {
+    text-shadow: 0 0 10px rgba(255, 0, 60, 0.7);
+  }
+
+  .neon-border-cyan {
+    box-shadow:
+      0 0 10px rgba(0, 240, 255, 0.3),
+      inset 0 0 10px rgba(0, 240, 255, 0.1);
+  }
+}
+
+body {
+  @apply bg-cyber-dark text-white font-sans antialiased overflow-hidden;
+  background-image:
+    radial-gradient(
+      circle at 10% 20%,
+      rgba(0, 240, 255, 0.1) 0%,
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 90% 80%,
+      rgba(255, 0, 60, 0.1) 0%,
+      transparent 40%
+    );
+}
